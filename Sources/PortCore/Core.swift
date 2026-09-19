@@ -240,6 +240,7 @@ public enum Credential {
     private static var query: [String: Any] { [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: "typesafe"] }
     public static func read() throws -> String {
         var query = query; query[kSecReturnData as String] = true
+        query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUIFail
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         guard status == errSecSuccess, let data = result as? Data, let key = String(data: data, encoding: .utf8), !key.isEmpty else { throw PortError("TypeSafe is not connected, or Keychain access was denied. Local scan and cleanup still work.") }
