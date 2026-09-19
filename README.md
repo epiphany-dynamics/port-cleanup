@@ -4,7 +4,13 @@
 
 Port Cleanup tells you which listening ports are safe to stop — and which are not — before anything is touched. Every TCP listener gets a typed recommendation from Jev, the evidence behind it, and an explicit decision that only you can make. No process is ever stopped automatically.
 
-> A product screenshot and short demo will be added in a later media update. Nothing visual is included in this release yet.
+![Port Cleanup hero image showing a listening port listed with a Jev typed judgment, its evidence summary, and a human-confirmed stop action](assets/port-cleanup-hero.png)
+
+## Product view
+
+The main window is where the decision happens: every listening port appears as a row with its executable, project context, Jev verdict, and confidence — and stopping anything still requires selecting the row and confirming.
+
+![Screenshot of the Port Cleanup main window showing listening port rows with process context, Jev verdicts and confidence, and a selected row ready for a confirmed stop](assets/port-cleanup-app.png)
 
 ## Why Jev matters
 
