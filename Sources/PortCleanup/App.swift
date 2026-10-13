@@ -129,7 +129,7 @@ typealias ViewState<Value> = SwiftUI.State<Value>
 
 /// Explicit chrome treatment so standard controls stay readable in every
 /// macOS appearance, including the borderless offscreen render preview.
-private struct ChromeButtonStyle: ButtonStyle {
+struct ChromeButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
     private var labelColor: Color { colorScheme == .dark ? .white : Color(white: 0.12) }
@@ -162,6 +162,8 @@ struct PortView: View {
     @ViewState private var search = ""
     @ViewState private var category = "all"
     @ViewState private var showRules = false
+    @ViewState private var showConnection = false
+    @ViewState private var keySaved = TypeSafeKeyStore().isSaved
     @ViewState private var showHistory = false
     @ViewState private var showConfirm = false
     @ViewState private var confirmation: [Listener] = []
@@ -189,6 +191,9 @@ struct PortView: View {
             Spacer()
             VStack(alignment: .trailing, spacing: 8) {
                 HStack(spacing: 8) {
+                    Button { showConnection = true } label: {
+                        Label(keySaved ? "TypeSafe key saved" : "Connect TypeSafe", systemImage: "key")
+                    }.disabled(model.busy).accessibilityIdentifier("typesafe-connect")
                     Button { showHistory = true } label: { Label("History", systemImage: "clock.arrow.circlepath") }
                     Button { showRules = true } label: { Label("Protections", systemImage: "shield") }
                         .disabled(model.busy)
@@ -198,7 +203,10 @@ struct PortView: View {
                     Button { model.refresh() } label: { Label("Refresh", systemImage: "arrow.clockwise") }
                         .disabled(model.busy)
                         .keyboardShortcut("r", modifiers: .command)
-                    Button { model.scanAllWithJev() } label: { Label("Scan all with Jev", systemImage: "sparkles") }
+                    Button {
+                        keySaved = TypeSafeKeyStore().isSaved
+                        if keySaved { model.scanAllWithJev() } else { showConnection = true }
+                    } label: { Label("Scan all with Jev", systemImage: "sparkles") }
                         .disabled(model.busy)
                         .buttonStyle(.borderedProminent)
                         .tint(.green)
@@ -300,9 +308,15 @@ struct PortView: View {
             }.padding(20)
         }.frame(minWidth: 1120, minHeight: 700)
         .sheet(isPresented: $showRules) { rulesSheet }
+        .sheet(isPresented: $showConnection, onDismiss: { keySaved = TypeSafeKeyStore().isSaved }) {
+            TypeSafeConnectionView {
+                keySaved = true; model.failure = nil
+                model.message = "TypeSafe key saved in Keychain. Click Scan all with Jev when ready; no API request was made."
+            }
+        }
         .sheet(isPresented: $showHistory) { historySheet }
         .sheet(isPresented: $showConfirm) { confirmationSheet }
-        .sheet(item: $model.inspectionTarget) { row in
+        .sheet(item: $model.inspectionTarget, onDismiss: { keySaved = TypeSafeKeyStore().isSaved }) { row in
             let cached = model.inspections[row.pid].flatMap { $0.process.intentKey == row.intentKey ? $0 : nil }
             InspectorView(row: row, model: model, initialReport: cached, initialInterpretation: cached == nil ? nil : model.interpretations[row.pid])
         }
@@ -446,6 +460,26 @@ struct BulkAudit: Codable {
     @MainActor static func main() async {
         do {
             let args = CommandLine.arguments
+            if args.contains("--verify-typesafe-setup") { try TypeSafeConnectionChecks.run(); return }
+            if args.contains("--save-typesafe-from-environment") {
+                guard let key = ProcessInfo.processInfo.environment["TYPESAFE_API_KEY"] else { throw PortError("No TypeSafe key in the installer environment") }
+                try TypeSafeKeyStore().save(key)
+                _ = try Credential.read()
+                print("TypeSafe key saved in Keychain; read-back verified. No API request made."); return
+            }
+            if let index = args.firstIndex(of: "--render-typesafe-setup"), args.count > index + 1 {
+                NSApplication.shared.setActivationPolicy(.prohibited)
+                let host = NSHostingView(rootView: TypeSafeConnectionView(onSave: {}))
+                let size = NSSize(width: 578, height: 480)
+                host.frame = NSRect(origin: .zero, size: size)
+                let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: size.width, height: size.height), styleMask: .borderless, backing: .buffered, defer: false)
+                window.contentView = host; host.layoutSubtreeIfNeeded(); window.display()
+                guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { throw PortError("Could not render TypeSafe setup") }
+                host.cacheDisplay(in: host.bounds, to: bitmap)
+                guard let png = bitmap.representation(using: .png, properties: [:]) else { throw PortError("Could not encode TypeSafe setup") }
+                try png.write(to: URL(fileURLWithPath: args[index + 1]))
+                print("Rendered TypeSafe setup view; no key displayed and no API request made."); return
+            }
             if args.contains("--verify-jev-connection") { _ = try Credential.read(); print("TypeSafe Keychain access verified; no API request made."); return }
             if args.contains("--connect-jev-from-environment") { try Credential.installFromEnvironment(); print("TypeSafe connected in Keychain; read-back verified."); return }
             if args.contains("--scan") { print(String(decoding: try JSONEncoder().encode(Scanner.scan()), as: UTF8.self)); return }
