@@ -469,7 +469,8 @@ struct BulkAudit: Codable {
             }
             if let index = args.firstIndex(of: "--render-typesafe-setup"), args.count > index + 1 {
                 NSApplication.shared.setActivationPolicy(.prohibited)
-                let host = NSHostingView(rootView: TypeSafeConnectionView(onSave: {}))
+                let host = NSHostingView(rootView: TypeSafeConnectionView(onSave: {}).environment(\.colorScheme, .light).background(Color.white))
+                host.appearance = NSAppearance(named: .aqua)
                 let size = NSSize(width: 578, height: 480)
                 host.frame = NSRect(origin: .zero, size: size)
                 let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: size.width, height: size.height), styleMask: .borderless, backing: .buffered, defer: false)
