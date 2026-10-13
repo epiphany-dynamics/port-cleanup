@@ -9,6 +9,7 @@ struct InspectorView: View {
     @ViewState private var interpretation: EvidenceInterpretation?
     @ViewState private var busy = false
     @ViewState private var error: String?
+    @ViewState private var showConnection = false
     init(row: Listener, model: PortModel, initialReport: InspectionReport? = nil, initialInterpretation: EvidenceInterpretation? = nil) {
         self.row = row; self.model = model; _report = ViewState(initialValue: initialReport)
         _interpretation = ViewState(initialValue: initialInterpretation)
@@ -108,6 +109,9 @@ struct InspectorView: View {
             }
         }.padding(24).frame(minWidth: 760, maxWidth: 940, minHeight: 680, maxHeight: 920)
         .task { if report == nil { load() } }
+        .sheet(isPresented: $showConnection) {
+            TypeSafeConnectionView { error = nil }
+        }
     }
     @ViewBuilder private func section<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 10) { Label(title, systemImage: icon).font(.headline); content() }
@@ -125,6 +129,7 @@ struct InspectorView: View {
         }
     }
     private func interpret() {
+        guard TypeSafeKeyStore().isSaved else { showConnection = true; return }
         guard !busy else { return }; busy = true; error = nil; interpretation = nil
         Task {
             defer { busy = false }

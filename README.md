@@ -37,7 +37,13 @@ Stopping a process is TCP-only, one row per PID, with no privileged helper, sudo
 
 ## Connect once, decide every time
 
-Jev is a paid, user-triggered service. Connect once with the app's one-time connect flow (or `--connect-jev-from-environment`); the TypeSafe key is stored in your macOS Keychain and never in this repository. After that, every Jev request reads the stored key directly — **no per-request password prompt**. Keychain reads fail cleanly instead of invoking the authentication UI, so a stale or denied item never interrupts a scan. If access ever goes stale (for example, after replacing the app identity), reconnect once.
+1. Open Port Cleanup and click **Connect TypeSafe** in the top-right corner.
+2. Follow the link to [TypeSafe](https://typesafe.ai) if you need an API key. Paste your key into the masked field and click **Save API key**.
+3. Click **Scan all with Jev** when you want recommendations. Saving a key never starts a scan or makes an API request.
+
+The key stays in this Mac's Keychain, not in settings, app files, or the repository. **TypeSafe key saved** confirms that the app can read it locally; it does not mean TypeSafe has accepted it. Your next explicit Jev request checks that. Click the same button to replace a key. Missing or unreadable keys open setup before either bulk or individual interpretation. You can cancel and keep using local scan, inspection, and cleanup without a key.
+
+Keychain reads don't prompt during scans. If access is denied or becomes stale after changing the app's signing identity, save your key again. macOS may ask for permission while saving. For controlled installers, `--save-typesafe-from-environment` explicitly replaces the saved key and verifies read-back; `--connect-jev-from-environment` retains its existing non-overwrite behavior. Both read `TYPESAFE_API_KEY` from the process environment, never a command-line argument. Neither makes an API request.
 
 One paid request per explicit click. No retry, no fallback, no background polling. API failure leaves local evidence intact and the decision with you.
 
@@ -53,6 +59,7 @@ The app is signed with a Developer ID certificate and notarized by Apple, so mac
 
 ```bash
 swift run PortCoreTests                    # assertion harness; no XCTest required
+swift run PortCleanup --verify-typesafe-setup # disposable Keychain item; no API request
 python3 scripts/build.py --ad-hoc --destination "$HOME/Desktop/Port Cleanup.app"
 python3 scripts/build.py --destination "$HOME/Desktop/Port Cleanup.app"   # Developer ID-signed when installed
 python3 scripts/build.py --identity "$IDENTITY" --dmg "$HOME/Desktop/Port Cleanup.dmg"
